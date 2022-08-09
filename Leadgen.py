@@ -1,3 +1,4 @@
+from argparse import Action
 import os
 import time
 import json
@@ -13,24 +14,18 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.common.exceptions import TimeoutException
 
-def leadGenerator(entryBox):
-    # GOOGLE SHEETS API SETUP
+def sheetsApi():
+    global scope, creds, client, sheet
     scope = ["https://spreadsheets.google.com/feeds",'https://www.googleapis.com/auth/spreadsheets',"https://www.googleapis.com/auth/drive.file","https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
     client = gspread.authorize(creds)
     sheet = client.open("Leads").sheet1
-    # OPEN DRIVER AND NAVIGATE TO MAPS PAGE
-    clear = lambda: os.system('cls')
-    clear()
-    print("*****************************************************************")
-    print("----------------THE ULTIMATE LEAD FINDING MACHINE----------------")
-    print("*****************************************************************")
-    print("\n")
-    whatToSearch = entryBox
 
+def navigateToListings(entryBox):
+    global driver, wait
+    whatToSearch = entryBox
     driver = webdriver.Chrome()
     driver.get("https://google.com")
-    driver.maximize_window()
     searchBar = driver.find_element(By.XPATH, "//input[@class='gLFyf gsfi']")
     ActionChains(driver)\
         .send_keys_to_element(searchBar, whatToSearch)\
@@ -42,17 +37,41 @@ def leadGenerator(entryBox):
     ActionChains(driver)\
         .click(morePlaces)\
         .perform()
-    #REMOVED BECAUSE SOMETIMES THE MAIN MAP PORTION DOESN'T LOAD AND THE PROGRAM DIES
-    ########################################################################################## 
-    #wait_again = WebDriverWait(driver, timeout=10, poll_frequency=1)
-    #wait_again.until(EC.element_to_be_clickable((By.XPATH, "//div[@class='VIG2qd ApHyTb']")))
-    ###########################################################################################
+
+def pageCounter():
+    # time.sleep might be a lil unreliable for page loading
+    time.sleep(3)
     pages = driver.find_elements(By.XPATH, "//a[@class='fl']")
-    pagesNumber = len(pages) + 1
+    pages_num = len(pages) - 1
+    ActionChains(driver)\
+        .click(pages[pages_num])\
+        .perform()
+    time.sleep(3)
+    new_pages = driver.find_elements(By.XPATH, "//a[@class='fl']")
+    new_pages_length = len(new_pages) - 1
+    final_element_number = int(new_pages[new_pages_length].text)
+    
+    if final_element_number <= 10:
+        page_one = driver.find_element(By.LINK_TEXT, "1")
+        ActionChains(driver)\
+            .click(page_one)\
+            .perform()
+        scrapeCity((pages_num + 2))
+    else:
+        ActionChains(driver)\
+            .click(new_pages[0])\
+            .perform()
+        time.sleep(3)
+        page_zero = driver.find_elements(By.XPATH, "//a[@class='fl']")
+        ActionChains(driver)\
+            .click(page_zero[0])\
+            .perform()
+        scrapeCity(final_element_number)
+
+def scrapeCity(final_element_number): 
     mapData = []
-    #NESTED FOR LOOP THAT GOES THROUGH THE 10 PAGES AND ITERATING OVER THE 20 MAP ELEMENTS
-    for n in range(0, pagesNumber):
-        time.sleep(4) #Make sure all elements load before mapElements runs again
+    for n in range(0, final_element_number):
+        time.sleep(4)
         mapLength = len(driver.find_elements(By.XPATH, "//span[@class='OSrXXb']"))
         mapElements = driver.find_elements(By.XPATH, "//span[@class='OSrXXb']")
         for x in range(0, mapLength):
@@ -69,23 +88,29 @@ def leadGenerator(entryBox):
                 bizName = mapElements[(x-1)].text
                 phoneNum = phoneElem[(phoneElemLen - 1)].text.strip("Phone :")
                 mapData.append((bizName, websiteUrl, phoneNum))
-                #update sheets based on info
                 mapDataLength = len(mapData)
                 newVar = mapData[mapDataLength-1]
-                #sheet.update_cell(mapDataLength + 1, 1, newVar[0]) #mapDataLength + 1 so it starts 1 row down
-                #sheet.update_cell(mapDataLength + 1, 2, newVar[1]) #to have titles NAME, SITE, NUMBER
-                #sheet.update_cell(mapDataLength + 1, 3, newVar[2])
                 updateRange = f'A{mapDataLength + 1}:C{mapDataLength + 1}'
                 sheet.update(updateRange, [[newVar[0], newVar[1], newVar[2]]])
-                #time.sleep(0) # AS TO NOT EXCEED 60 SHEETS REQUESTS PER MINUTE, ALSO 2 AVOID STALEELEMENT EXCEPTION
             except NoSuchElementException:
                 print("couldn't find the element")
             except StaleElementReferenceException:
                 print("bruh fml")
             except TimeoutException:
-                print("timeout exception") # Is this in the right place?
-        
-        pagination = driver.find_element(By.LINK_TEXT, str(n + 2))
-        ActionChains(driver)\
-            .click(pagination)\
-            .perform()
+                print("timeout exception")
+        # Lowkey masking the real bug with this try:except, program tries to paginate 1 page above index
+        # e.g. FINAL PAGE: 10, Tries to find PAGE 11, but crashes
+        try:
+            pagination = driver.find_element(By.LINK_TEXT, str(n + 2))
+            ActionChains(driver)\
+                .click(pagination)\
+                .perform()
+        except NoSuchElementException:
+            driver.quit()
+
+def clearFakePhoneNumbers():
+    values_list = sheet.col_values(3)
+    values_list_length = len(values_list)
+    for x in range(0, values_list_length):
+        if len(values_list[x]) > 15 or values_list[x] == "Address":
+            sheet.update_cell((x + 1), 3, "(801) 000-0000")
