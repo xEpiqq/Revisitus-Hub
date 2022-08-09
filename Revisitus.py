@@ -15,7 +15,10 @@ def launchDefault():
     Openup.openSheets()
 
 def launchLeadgen():
-    Leadgen.leadGenerator(entry_1.get())
+    Leadgen.sheetsApi()
+    Leadgen.navigateToListings(entry_1.get())
+    Leadgen.pageCounter()
+    Leadgen.clearFakePhoneNumbers()
 
 def launchFindEmails():
     EmailSender.main()
