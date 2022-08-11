@@ -3,6 +3,7 @@ import os
 import time
 import json
 import gspread
+from selenium.webdriver.chrome.options import Options
 from oauth2client.service_account import ServiceAccountCredentials
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -24,6 +25,9 @@ def sheetsApi():
 def navigateToListings(entryBox):
     global driver, wait
     whatToSearch = entryBox
+    chrome_options = Options()
+    chrome_options.add_experimental_option("useAutomationExtension", False)
+    chrome_options.add_experimental_option("excludeSwitches",["enable-automation"])
     driver = webdriver.Chrome()
     driver.get("https://google.com")
     searchBar = driver.find_element(By.XPATH, "//input[@class='gLFyf gsfi']")
@@ -85,13 +89,20 @@ def scrapeCity(final_element_number):
                 websiteUrl = websiteElem.get_dom_attribute("href")
                 phoneElem = driver.find_elements(By.XPATH, "//div[@class='zloOqf PZPZlf']")
                 phoneElemLen = len(phoneElem)
-                bizName = mapElements[(x-1)].text
                 phoneNum = phoneElem[(phoneElemLen - 1)].text.strip("Phone :")
-                mapData.append((bizName, websiteUrl, phoneNum))
+                # Add reviews but since they aren't always there we need a try-except
+                try:
+                    reviewElem = driver.find_element(By.XPATH, "//span[@class='hqzQac']")
+                    reviews = reviewElem.text
+                except NoSuchElementException:
+                    reviews = "0 Google reviews"
+                
+                bizName = mapElements[(x-1)].text
+                mapData.append((bizName, websiteUrl, phoneNum, reviews))
                 mapDataLength = len(mapData)
                 newVar = mapData[mapDataLength-1]
-                updateRange = f'A{mapDataLength + 1}:C{mapDataLength + 1}'
-                sheet.update(updateRange, [[newVar[0], newVar[1], newVar[2]]])
+                updateRange = f'A{mapDataLength + 1}:E{mapDataLength + 1}'
+                sheet.update(updateRange, [[newVar[0], newVar[1], newVar[2], "", newVar[3]]])
             except NoSuchElementException:
                 print("couldn't find the element")
             except StaleElementReferenceException:
@@ -113,4 +124,4 @@ def clearFakePhoneNumbers():
     values_list_length = len(values_list)
     for x in range(0, values_list_length):
         if len(values_list[x]) > 15 or values_list[x] == "Address":
-            sheet.update_cell((x + 1), 3, "(801) 000-0000")
+            sheet.update_cell((x + 1), 3, "(801) N/A")
