@@ -16,14 +16,16 @@ from selenium.common.exceptions import WebDriverException
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
 
-email = "" #remove this bad boy from public repo
-password = "" # same here
+email = "revisitus.web@gmail.com"
+password = "Sugar000!"
 
 
 def openVoice():
     chrome_options = Options()
     chrome_options.add_argument("--window-size=350,830")
     chrome_options.add_argument("--window-position=0,0")
+    chrome_options.add_experimental_option("useAutomationExtension", False)
+    chrome_options.add_experimental_option("excludeSwitches",["enable-automation"])
     global secondDriver
     secondDriver = webdriver.Chrome(options=chrome_options)
     newWait = WebDriverWait(secondDriver, timeout=10, poll_frequency=1)
@@ -70,5 +72,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-    
