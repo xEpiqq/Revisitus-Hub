@@ -4,12 +4,13 @@ import Leadgen
 import Openup
 import Emailfinder
 import Leadranker
+import Emailgen
 
 customtkinter.set_appearance_mode("dark")  # Modes: "System" (standard), "Dark", "Light"
 customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
 app = customtkinter.CTk()
-app.geometry("400x460")
+app.geometry("400x520")
 app.title("REVISITUS HUB")
 
 def launchDefault():
@@ -28,8 +29,14 @@ def launchFindEmails():
 def launchLeadRanker():
     Leadranker.leadRankerMainFunction()
 
+def launchScreenshotter():
+    Emailgen.variablesAndSheetsConnect()
+    Emailgen.createEmailList()
+    Emailgen.screenShotters()
+
 def launchGenEmails():
-    print("launchGenEmails")
+    Emailgen.signinToGmail()
+    Emailgen.sendEmails()
 
 frame_1 = customtkinter.CTkFrame(master=app)
 frame_1.pack(pady=20, padx=60, fill="both", expand=True)
@@ -48,6 +55,9 @@ button_5.pack(pady=12, padx=10)
 
 button_2 = customtkinter.CTkButton(master=frame_1, command=launchFindEmails, text="FIND EMAILS")
 button_2.pack(pady=12, padx=10)
+
+button_4 = customtkinter.CTkButton(master=frame_1, command=launchScreenshotter, text="SCREENSHOT")
+button_4.pack(pady=12, padx=10)
 
 button_3 = customtkinter.CTkButton(master=frame_1, command=launchGenEmails, text="GEN EMAILS")
 button_3.pack(pady=12, padx=10)
